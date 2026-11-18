@@ -1,0 +1,40 @@
+name: Build kexts (hdmi-fb2)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-kexts:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout hdmi-fb2
+        uses: actions/checkout@v4
+        with:
+          ref: hdmi-fb2
+
+      - name: Clone MacKernelSDK
+        run: git clone --depth 1 https://github.com/acidanthera/MacKernelSDK.git MacKernelSDK
+
+      - name: Build PhxBringup.kext
+        run: sh src/phxbringup/build.sh "$PWD/MacKernelSDK"
+
+      - name: Adhoc-sign PhxBringup.kext
+        run: codesign --force --sign - src/phxbringup/build/PhxBringup.kext
+
+      - name: Build PhxAccel.kext
+        run: sh src/phxaccel/build.sh "$PWD/MacKernelSDK"
+
+      - name: Verify kext binaries
+        run: |
+          ls -la src/phxbringup/build/PhxBringup.kext/Contents/MacOS/ src/phxaccel/build/PhxAccel.kext/Contents/MacOS/
+          file src/phxbringup/build/PhxBringup.kext/Contents/MacOS/PhxBringup src/phxaccel/build/PhxAccel.kext/Contents/MacOS/PhxAccel
+
+      - name: Upload kexts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nullarc-hdmi-fb2-kexts
+          path: |
+            src/phxbringup/build/PhxBringup.kext
+            src/phxaccel/build/PhxAccel.kext
+          if-no-files-found: error
